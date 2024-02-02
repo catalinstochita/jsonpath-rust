@@ -1,5 +1,12 @@
+use lazy_static::lazy_static;
 use regex::Regex;
 use serde_json::Value;
+use std::collections::HashMap;
+use std::sync::Mutex;
+
+lazy_static! {
+    pub static ref REGEX_MAP: Mutex<HashMap<String, Regex>> = Mutex::new(HashMap::new());
+}
 
 /// compare sizes of json elements
 /// The method expects to get a number on the right side and array or string or object on the left
@@ -100,7 +107,13 @@ pub fn regex(left: Vec<&Value>, right: Vec<&Value>) -> bool {
 
     match right.first() {
         Some(Value::String(str)) => {
-            if let Ok(regex) = Regex::new(str) {
+            let mut lock = REGEX_MAP.lock().unwrap();
+            if !lock.contains_key(str) {
+                if let Ok(regex) = Regex::new(str) {
+                    lock.insert(str.to_string(), regex);
+                }
+            }
+            if let Some(regex) = lock.get(str) {
                 for el in left.iter() {
                     if let Some(v) = el.as_str() {
                         if regex.is_match(v) {
@@ -109,6 +122,16 @@ pub fn regex(left: Vec<&Value>, right: Vec<&Value>) -> bool {
                     }
                 }
             }
+            //OLD
+            // if let Ok(regex) = Regex::new(str) {
+            //     for el in left.iter() {
+            //         if let Some(v) = el.as_str() {
+            //             if regex.is_match(v) {
+            //                 return true;
+            //             }
+            //         }
+            //     }
+            // }
             false
         }
         _ => false,

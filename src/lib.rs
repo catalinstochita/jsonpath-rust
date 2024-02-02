@@ -500,6 +500,7 @@ mod tests {
     use serde_json::{json, Value};
     use std::ops::Deref;
     use std::str::FromStr;
+    use std::time::Instant;
 
     fn test(json: &str, path: &str, expected: Vec<JsonPathValue<Value>>) {
         match JsonPathFinder::from_str(json, path) {
@@ -1242,6 +1243,25 @@ mod tests {
             finder.find_slice(),
             vec![Slice(&json!({"author":"abcd(Rees)"}), "$".to_string())]
         );
+    }
+
+    #[test]
+    fn regex_speed_test() {
+        let json: Box<Value> = Box::new(json!({
+            "author":"abcd(Rees)",
+        }));
+
+        let path: Box<JsonPathInst> = Box::from(
+            JsonPathInst::from_str("$.[?(@.author ~= '.*(?i)d\\(Rees\\)')]")
+                .expect("the path is correct"),
+        );
+
+        let start = Instant::now();
+        for i in 0..30000 {
+            let finder = JsonPathFinder::new(json.clone(), path.clone());
+            let _v = finder.find();
+        }
+        println!("END : {:?}", start.elapsed());
     }
 
     #[test]
